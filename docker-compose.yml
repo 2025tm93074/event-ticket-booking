@@ -6,6 +6,7 @@ services:
     image: postgres:17-alpine
     container_name: etb-postgres
     environment:
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Kolkata"
       POSTGRES_USER: ${POSTGRES_ADMIN_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-postgres}
     ports:

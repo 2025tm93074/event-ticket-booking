@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: event-catalog
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/catalog_db}
+    username: ${DB_USERNAME:catalog_user}
+    password: ${DB_PASSWORD:catalog_pass}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+server:
+  port: ${PORT:8081}
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

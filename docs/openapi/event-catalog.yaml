@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: Event Catalog Service
+  version: 1.0.0
+servers:
+  - url: http://localhost:8081
+paths:
+  /health:
+    get:
+      summary: Health and database check
+      responses:
+        '200': { description: Service and database are up }
+        '503': { description: Database unavailable }
+  /api/v1/events:
+    get:
+      summary: List published events
+      responses:
+        '200':
+          description: Published events with ticket types
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Event' } }
+  /api/v1/events/{eventId}:
+    get:
+      summary: Get a published event
+      parameters:
+        - in: path
+          name: eventId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Event found
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Event' }
+        '404': { description: Event missing or unpublished }
+components:
+  schemas:
+    TicketType:
+      type: object
+      required: [ticket_type_id, name, price, currency, published]
+      properties:
+        ticket_type_id: { type: string, format: uuid }
+        name: { type: string }
+        price: { type: number, format: double }
+        currency: { type: string, example: INR }
+        published: { type: boolean }
+    Event:
+      type: object
+      required: [event_id, name, location, starts_at, published, ticket_types]
+      properties:
+        event_id: { type: string, format: uuid }
+        name: { type: string }
+        location: { type: string }
+        starts_at: { type: string, format: date-time }
+        published: { type: boolean }
+        ticket_types: { type: array, items: { $ref: '#/components/schemas/TicketType' } }
