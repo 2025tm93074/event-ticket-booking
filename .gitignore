@@ -1,0 +1,22 @@
+# Build output
+target/
+*.class
+
+# Local environment files (commit only .env.example)
+.env
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+!evidence/**/*.log

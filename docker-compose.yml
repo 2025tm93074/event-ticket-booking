@@ -1,0 +1,23 @@
+# Local infrastructure for the Event Ticket Booking system.
+# One PostgreSQL server hosts four separate databases, each owned by its own user.
+# A user can connect only to its own database (see infra/postgres/01-init-databases.sql).
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: etb-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+      - etb-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_ADMIN_USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  etb-postgres-data:
