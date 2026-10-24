@@ -1,0 +1,222 @@
+openapi: 3.1.0
+info:
+  title: Payment Mock Service
+  description: Simulated payment provider for the Event Ticket Booking system. Charges
+    are idempotent per Idempotency-Key and can be forced to fail or slow down.
+  version: v1
+servers:
+- url: http://localhost:8084
+  description: Generated server url
+paths:
+  /api/v1/admin/simulation:
+    get:
+      tags:
+      - Simulation (admin)
+      summary: Current simulated gateway behaviour
+      operationId: get
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SimulationSettings"
+    put:
+      tags:
+      - Simulation (admin)
+      summary: "Switch gateway behaviour (SUCCESS, FAIL, SLOW) without restarting"
+      operationId: update
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulationSettings"
+        required: true
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SimulationSettings"
+  /api/v1/payments:
+    post:
+      tags:
+      - Payments
+      summary: Charge a booking
+      description: "Creates a payment attempt, or replays the stored result for a\
+        \ repeated Idempotency-Key. A declined charge is still 201 with status FAILED;\
+        \ errors use the common error format."
+      operationId: createPayment
+      parameters:
+      - name: Idempotency-Key
+        in: header
+        description: "Unique key per logical payment, max 100 characters"
+        required: true
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePaymentRequest"
+        required: true
+      responses:
+        "201":
+          description: Payment attempt recorded (status SUCCEEDED or FAILED)
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "200":
+          description: Replay of an earlier request with the same key and payload
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "400":
+          description: Validation failed or Idempotency-Key missing
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: "Key reused with a different payload, booking already paid,\
+            \ or original request still processing"
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /health:
+    get:
+      tags:
+      - Health
+      summary: Liveness and database connectivity
+      operationId: health
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+  /api/v1/payments/{paymentId}:
+    get:
+      tags:
+      - Payments
+      summary: Get a payment by id
+      operationId: getPayment
+      parameters:
+      - name: paymentId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Payment found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PaymentResponse"
+        "404":
+          description: Payment not found
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+components:
+  schemas:
+    SimulationSettings:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum:
+          - SUCCESS
+          - FAIL
+          - SLOW
+        delayMs:
+          type: integer
+          format: int64
+          maximum: 60000
+      required:
+      - mode
+    CreatePaymentRequest:
+      type: object
+      properties:
+        bookingId:
+          type: string
+          description: Booking being paid for (owned by the Booking service)
+          example: b7c1e7a4-3f0e-4c47-9d0b-6f1f7f0f2a11
+          maxLength: 64
+          minLength: 0
+        amount:
+          type: number
+          description: Amount to charge
+          example: 1500.0
+          minimum: 0.01
+        currency:
+          type: string
+          description: ISO 4217 currency code
+          example: INR
+          minLength: 1
+          pattern: "^[A-Z]{3}$"
+      required:
+      - amount
+      - bookingId
+      - currency
+    ApiError:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          format: int32
+        error:
+          type: string
+        code:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        correlationId:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: "#/components/schemas/FieldViolation"
+    FieldViolation:
+      type: object
+      properties:
+        field:
+          type: string
+        message:
+          type: string
+    PaymentResponse:
+      type: object
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+        bookingId:
+          type: string
+        amount:
+          type: number
+        currency:
+          type: string
+        status:
+          type: string
+          enum:
+          - PROCESSING
+          - SUCCEEDED
+          - FAILED
+        failureReason:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
