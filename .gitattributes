@@ -1,0 +1,9 @@
+# Normalise line endings so Windows, macOS and Linux checkouts behave the same
+* text=auto
+
+# Shell scripts must keep LF or they fail on macOS/Linux
+mvnw text eol=lf
+*.sh text eol=lf
+
+# Windows scripts keep CRLF
+*.cmd text eol=crlf
