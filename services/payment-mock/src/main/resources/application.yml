@@ -1,0 +1,37 @@
+# Every value can be overridden by an environment variable of the same name.
+# A local .env file in the service folder is also read (see .env.example).
+spring:
+  application:
+    name: payment-mock
+  config:
+    import: optional:file:.env[.properties]
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/payment_db}
+    username: ${DB_USERNAME:payment_user}
+    password: ${DB_PASSWORD:payment_pass}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+
+server:
+  port: ${PORT:8084}
+
+payment:
+  # SUCCESS | FAIL | SLOW. Can also be changed at runtime via PUT /api/v1/admin/simulation.
+  mode: ${PAYMENT_MODE:SUCCESS}
+  # Artificial processing delay used when mode = SLOW.
+  delay-ms: ${PAYMENT_DELAY_MS:3000}
+  # How long a duplicate request waits for an in-flight payment with the same key to finish.
+  in-progress-wait-ms: ${PAYMENT_IN_PROGRESS_WAIT_MS:5000}
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
