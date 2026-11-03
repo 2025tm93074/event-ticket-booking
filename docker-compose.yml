@@ -1,0 +1,132 @@
+# Local infrastructure for the Event Ticket Booking system.
+# One PostgreSQL server hosts four separate databases, each owned by its own user.
+# A user can connect only to its own database (see infra/postgres/01-init-databases.sql).
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: etb-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./infra/postgres:/docker-entrypoint-initdb.d:ro
+      - etb-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  event-catalog:
+    image: etb-event-catalog:dev
+    container_name: etb-event-catalog
+    environment:
+      PORT: 8081
+      DB_URL: jdbc:postgresql://postgres:5432/catalog_db
+      DB_USERNAME: catalog_user
+      DB_PASSWORD: catalog_pass
+    ports:
+      - "8081:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  inventory:
+    image: etb-inventory:dev
+    container_name: etb-inventory
+    environment:
+      PORT: 8082
+      DB_URL: jdbc:postgresql://postgres:5432/inventory_db
+      DB_USERNAME: inventory_user
+      DB_PASSWORD: inventory_pass
+    ports:
+      - "8082:8082"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  payment-mock:
+    image: etb-payment-mock:dev
+    container_name: etb-payment-mock
+    environment:
+      PORT: 8084
+      DB_URL: jdbc:postgresql://postgres:5432/payment_db
+      DB_USERNAME: payment_user
+      DB_PASSWORD: payment_pass
+      PAYMENT_MODE: SUCCESS
+    ports:
+      - "8084:8084"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  booking:
+    image: etb-booking:dev
+    container_name: etb-booking
+    environment:
+      PORT: 8083
+      DB_URL: jdbc:postgresql://postgres:5432/booking_db
+      DB_USERNAME: booking_user
+      DB_PASSWORD: booking_pass
+      CATALOG_BASE_URL: http://event-catalog:8081
+      INVENTORY_BASE_URL: http://inventory:8082
+      PAYMENT_BASE_URL: http://payment-mock:8084
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      event-catalog:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+      payment-mock:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    restart: unless-stopped
+
+  web:
+    image: etb-web:dev
+    container_name: etb-web
+    environment:
+      UI_PORT: 3000
+      CATALOG_URL: http://event-catalog:8081
+      INVENTORY_URL: http://inventory:8082
+      BOOKING_URL: http://booking:8083
+    ports:
+      - "3000:3000"
+    depends_on:
+      event-catalog:
+        condition: service_healthy
+      inventory:
+        condition: service_healthy
+      booking:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  etb-postgres-data:
